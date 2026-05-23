@@ -1,41 +1,31 @@
-# 구현 계획 - 프로젝트 오류 분석 및 Vercel 배포를 위한 수정
+# 구현 계획
 
 ## 요구사항 요약
-Next.js 16/React 19 환경에서 발생하는 린트 에러(any 타입, 선언 전 참조, 미사용 변수)를 해결하고, 빌드 오류(`.next/dev/types/routes.d.ts`)를 수정하여 Vercel 배포가 가능한 상태로 프로젝트를 개선한다.
+로그인 성공 후에도 게시글 페이지 진입 시 계속 로그인 화면으로 리다이렉트되는 문제 해결.
 
 ## 가정
-- `npm run build` 시 발생하는 `.next/dev/types/routes.d.ts` 에러는 타입 안정성 확보 및 `params` 처리 방식 최적화를 통해 해결될 것으로 가정한다.
-- Supabase 관련 환경 변수는 Vercel 대시보드에 이미 설정되어 있거나 설정될 예정이라고 가정한다.
-- Next.js 16은 최신 버전(또는 실험적 버전)이므로, Next.js 15에서 도입된 `params` 비동기 처리 방식을 엄격히 따른다.
+- Vercel 배포 환경에서 `NEXT_PUBLIC_SUPABASE_URL` 및 `NEXT_PUBLIC_SUPABASE_ANON_KEY` 환경 변수가 Edge Runtime(미들웨어)에 제대로 전달되지 않았거나, 빈 문자열로 처리되어 Supabase 인증이 실패함.
+- 미들웨어의 쿠키 동기화 로직(`setAll`)에서 세션 갱신 정보가 브라우저로 제대로 전달되지 않음.
+- 게시글 상세 페이지(`/board/[type]/[id]`)는 비로그인 사용자에게 차단된 상태임.
 
 ## 기술 스택
-- Next.js 16.2.6 (App Router)
-- React 19.2.4
-- TypeScript 5
-- Supabase (@supabase/ssr)
-- Tailwind CSS 4
-- Lucide React (아이콘)
+- Next.js 16 (App Router)
+- Supabase SSR (@supabase/ssr)
+- TypeScript
 
 ## 구현 범위
 | 파일 | 변경 유형 | 내용 |
 |------|----------|------|
-| `src/types/database.ts` | 신규 | 공통 데이터 타입(Profile, Post, Subject 등) 정의 |
-| `src/app/admin/users/page.tsx` | 수정 | `any` 제거, `fetchUsers` 선언 위치 수정, 미사용 임포트 제거 |
-| `src/app/admin/subjects/page.tsx` | 수정 | `any` 제거, `fetchSubjects` 선언 위치 수정 |
-| `src/app/admin/page.tsx` | 수정 | `any` 제거 및 타입 적용 |
-| `src/app/board/[type]/page.tsx` | 수정 | `any` 제거 및 타입 적용 |
-| `src/app/board/[type]/[id]/page.tsx` | 수정 | `any` 제거 및 타입 적용 |
-| `src/app/board/[type]/new/page.tsx` | 수정 | `any` 제거 및 타입 적용 |
-| `src/components/board/*.tsx` | 수정 | `error: any`를 `Error` 또는 구체적 타입으로 변경 |
+| `src/lib/supabase/middleware.ts` | 수정 | `setAll` 로직 개선, 환경 변수 체크 및 디버깅 로그 추가 |
+| `src/lib/supabase/server.ts` | 수정 | 환경 변수 참조 방식 개선 (필수 값 체크) |
+| `src/lib/supabase/client.ts` | 수정 | 환경 변수 참조 방식 개선 |
 
 ## 구현 순서
-1. **타입 정의**: `src/types/database.ts` 파일을 생성하여 프로젝트 전반에서 사용할 인터페이스를 정의한다.
-2. **관리자 페이지 수정**: `src/app/admin` 내의 파일들에서 린트 에러를 해결한다.
-3. **게시판 페이지 수정**: `src/app/board` 내의 파일들에서 린트 에러 및 타입 이슈를 해결한다.
-4. **공통 컴포넌트 수정**: `src/components/board` 내의 버튼 및 폼 컴포넌트에서 `any` 타입을 제거한다.
-5. **빌드 확인**: 모든 수정 후 빌드가 정상적으로 수행되는지 확인하는 단계를 제안한다.
+1. **환경 변수 검증 로직 강화**: `?? ''`로 인해 조용히 실패하는 것을 방지하기 위해 환경 변수가 없을 경우 경고를 남기거나 명확히 처리.
+2. **미들웨어 쿠키 동기화 수정**: `setAll`에서 `request`와 `response` 모두에 쿠키 옵션을 정확히 전달하도록 수정.
+3. **디버깅 로그 추가**: Vercel 로그에서 확인할 수 있도록 미들웨어의 인증 단계별 로그 추가.
+4. **공용 페이지 범위 검토**: 게시판 목록 등 비로그인 사용자도 볼 수 있어야 하는 페이지가 있다면 `isPublicPage` 로직 수정.
 
 ## 기술 결정
-- **타입 안정성**: `any` 대신 구체적인 인터페이스를 사용하여 런타임 에러를 방지하고 개발 생산성을 높인다.
-- **함수 선언**: `useEffect` 내에서 호출되는 함수는 `useEffect` 상단에 정의하거나 `useCallback`으로 감싸서 "선언 전 참조" 에러를 방지한다.
-- **Next.js 15/16 호환성**: `params`와 `searchParams`를 `Promise`로 취급하여 `await`를 사용하는 패턴을 유지한다.
+- **안전한 환경 변수 참조**: `process.env` 값이 없을 경우 런타임 에러 대신 명확한 로그를 남겨 설정 오류임을 알림.
+- **Supabase SSR 표준 패턴 적용**: 최신 `@supabase/ssr` 가이드에 따른 미들웨어 구현 패턴 적용.
