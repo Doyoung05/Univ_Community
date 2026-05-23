@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Award, Search } from 'lucide-react'
+import { Award, Search, Trash2 } from 'lucide-react'
 import { Profile } from '@/types/database'
 
 export default function AdminUsersPage() {
@@ -81,6 +81,26 @@ export default function AdminUsersPage() {
     }
   }
 
+  const handleDeleteUser = async (userId: string, username: string) => {
+    if (!confirm(`정말 '${username}' 사용자를 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며 해당 사용자의 모든 프로필 데이터가 삭제됩니다.`)) {
+      return
+    }
+
+    setLoading(true)
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', userId)
+
+    if (error) {
+      toast.error('사용자 삭제에 실패했습니다: ' + error.message)
+    } else {
+      toast.success('사용자가 삭제되었습니다.')
+      fetchUsers()
+    }
+    setLoading(false)
+  }
+
   const filteredUsers = users.filter(user => 
     (user.username?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
     (user.full_name?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
@@ -144,13 +164,23 @@ export default function AdminUsersPage() {
                       {user.points.toLocaleString()} P
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setSelectedUser(user)}
-                      >
-                        <Award className="w-4 h-4 mr-1" /> 포인트 조정
-                      </Button>
+                      <div className="flex justify-end space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setSelectedUser(user)}
+                        >
+                          <Award className="w-4 h-4 mr-1" /> 포인트 조정
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDeleteUser(user.id, user.username || '알 수 없음')}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
