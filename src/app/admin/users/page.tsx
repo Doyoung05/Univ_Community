@@ -36,12 +36,10 @@ export default function AdminUsersPage() {
   }, [supabase])
 
   useEffect(() => {
-    let isMounted = true
     const loadData = async () => {
       await fetchUsers()
     }
     loadData()
-    return () => { isMounted = false }
   }, [fetchUsers])
 
   const handleUpdateRole = async (userId: string, newRole: string) => {

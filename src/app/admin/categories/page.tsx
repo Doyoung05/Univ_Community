@@ -24,12 +24,10 @@ export default function AdminCategoriesPage() {
   }, [supabase])
 
   useEffect(() => {
-    let isMounted = true
     const loadData = async () => {
       await fetchCategories()
     }
     loadData()
-    return () => { isMounted = false }
   }, [fetchCategories])
 
   const handleSubmit = async (e: React.FormEvent) => {

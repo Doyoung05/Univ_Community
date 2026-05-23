@@ -106,7 +106,7 @@ export default function NewPostPage() {
       const fileExt = file.name.split('.').pop()
       const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
       uploadedFileName = fileName
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('archives')
         .upload(fileName, file)
 

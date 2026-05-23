@@ -23,12 +23,10 @@ export default function AdminSubjectsPage() {
   }, [supabase])
 
   useEffect(() => {
-    let isMounted = true
     const loadData = async () => {
       await fetchSubjects()
     }
     loadData()
-    return () => { isMounted = false }
   }, [fetchSubjects])
 
   const handleSubmit = async (e: React.FormEvent) => {

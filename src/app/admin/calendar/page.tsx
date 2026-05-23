@@ -26,12 +26,10 @@ export default function AdminCalendarPage() {
   }, [supabase])
 
   useEffect(() => {
-    let isMounted = true
     const loadData = async () => {
       await fetchEvents()
     }
     loadData()
-    return () => { isMounted = false }
   }, [fetchEvents])
 
   const handleSubmit = async (e: React.FormEvent) => {
